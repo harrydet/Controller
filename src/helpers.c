@@ -90,7 +90,7 @@ extract_last_instruction (const char *path, int line_no, char** instruction)
   else
     {
       char *line;
-      char istr[11];
+      char istr[12];
       line = malloc (end - start + 1);
       if (line != NULL)
 	{

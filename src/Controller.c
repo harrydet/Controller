@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <stdbool.h>
 
 #include "helpers.h"
 
@@ -21,10 +22,13 @@ const char* BCC = "/opt/bcc-2.0.2-gcc/bin/sparc-gaisler-elf-gcc ";
 const char* SOURCE = " /home/harry/workspace/Injector_Sparc/injector_sparc.c ";
 char OPT[256];
 const char* OUTPUT = " injector_sparc_auto";
-const char* OUT_FILE = "output";
+const char* OUT_FILE = "Output/output";
 
 const char* TSIM = "/opt/TSIM\\ Evaluation/tsim-eval/tsim/linux/tsim-leon3 ";
 
+//Output control
+bool fileOutput = true;
+bool consoleOutput = false;
 
 int
 search_in_file (char *fname, char *str)
@@ -68,8 +72,6 @@ search_in_file (char *fname, char *str)
 void
 generate_options (char *svalue, char *evalue)
 {
-  //int start_hex = (int)strtol(svalue, NULL, 16);
-  //int end_hex = (int)strtol(evalue, NULL, 16);
   char* opt_start[50];
   char* opt_end[50];
 
@@ -140,7 +142,7 @@ compile (int argc, char **argv)
 
   opterr = 0;
 
-  while ((c = getopt (argc, argv, "s:e:")) != -1)
+  while ((c = getopt (argc, argv, "s:e:nc")) != -1)
     switch (c)
       {
       case 's':
@@ -148,6 +150,14 @@ compile (int argc, char **argv)
 	break;
       case 'e':
 	evalue = optarg;
+	break;
+      case 'n':
+	//No file output
+	fileOutput = false;
+	break;
+      case 'c':
+	//Console output
+	consoleOutput = true;
 	break;
       case '?':
 	if (optopt == 's' || optopt == 'e')
@@ -171,12 +181,16 @@ compile (int argc, char **argv)
 void
 execute (char* file)
 {
-  char execution_buff[256];
   char buff[256];
-  snprintf (buff, sizeof buff, "%s%s >%s", TSIM, OUTPUT, file);
+
+  if (fileOutput && !consoleOutput)
+    snprintf (buff, sizeof buff, "%s%s >%s", TSIM, OUTPUT, file);
+  else if (fileOutput && consoleOutput)
+    snprintf (buff, sizeof buff, "%s%s | tee %s", TSIM, OUTPUT, file);
+  else if (!fileOutput && consoleOutput)
+    snprintf (buff, sizeof buff, "%s%s", TSIM, OUTPUT);
 
   FILE *fp = NULL;
-  char path[512];
 
   fp = popen (buff, "w");
 
@@ -207,7 +221,7 @@ main (int argc, char **argv)
   char *instruction = NULL;
   int file_id = 0;
   char file_buf[50];
-  snprintf(file_buf, sizeof file_buf, "%s_%d.txt", OUT_FILE, file_id);
+  snprintf (file_buf, sizeof file_buf, "%s_%d.txt", OUT_FILE, file_id);
 
   int line_no = search_in_file (file_buf, HALT);
 
@@ -242,7 +256,7 @@ main (int argc, char **argv)
       printf ("Simulation halted, continuing at: %s", instruction);
       compile_cont (instruction);
       file_id++;
-      snprintf(file_buf, sizeof file_buf, "%s_%d.txt", OUT_FILE, file_id);
+      snprintf (file_buf, sizeof file_buf, "%s_%d.txt", OUT_FILE, file_id);
       execute (file_buf);
       line_no = search_in_file (file_buf, HALT);
     }
